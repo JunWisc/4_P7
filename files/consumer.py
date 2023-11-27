@@ -1,5 +1,4 @@
-
-from kafka import KafkaConsumer
+from kafka import KafkaConsumer, TopicPartition
 import report_pb2
 import json
 import os
@@ -56,14 +55,3 @@ for message in consumer:
         json.dump(partition_data[message.partition], f)
     os.rename(f'partition-{message.partition}.json.tmp', f'partition-{message.partition}.json')
    
-
-
-
-
-
-
-
-
-
-
-
