@@ -1,32 +1,38 @@
-from kafka import KafkaProducer
-from kafka.errors import KafkaError
+from kafka import KafkaAdminClient, KafkaProducer
+from kafka.admin import NewTopic
+from kafka.errors import KafkaError, UnknownTopicOrPartitionError
+import time
 import weather
 import report_pb2
 
-# Set up Kafka producer
-producer = KafkaProducer(
-         bootstrap_servers=['localhost:9092'],
-         retries=10,
-         acks='all',
-         key_serializer=str.encode,
-         value_serializer=lambda m: m.SerializeToString()
-    )
+broker = 'localhost:9092'
+admin_client = KafkaAdminClient(bootstrap_servers=[broker])
 
-# Runs infinitely because the weather never ends
+try:
+    admin_client.delete_topics(["temperatures"])
+    print("Deleted topics successfully")
+except UnknownTopicOrPartitionError:
+    print("Cannot delete topic/s (may not exist yet)")
+
+time.sleep(3)
+
+new_topic = NewTopic(name="temperatures", num_partitions=4, replication_factor=1)
+admin_client.create_topics(new_topics=[new_topic])
+
+print("Topics:", admin_client.list_topics())
+
+producer = KafkaProducer(bootstrap_servers=[broker],
+                         retries=10,
+                         acks='all')
+
 for date, degrees in weather.get_next_weather(delay_sec=0.1):
-    # Create Protobuf message
     report = report_pb2.Report(date=date, degrees=degrees)
+    future = producer.send('temperatures', key=date.split('-')[1].encode(), value=report.SerializeToString())
 
-    # Generate the key for the message using the month name
-    month_name = date.split('-')[1]
-    month_names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    key = month_names[int(month_name) - 1]
-
-    # Send the message to Kafka
-    future = producer.send('temperatures', key=key, value=report)
-
-    # Handle sending errors
     try:
-        future.get(timeout=10)
-    except KafkaError as e:
-        print(f"Failed to send message: {e}")
+        record_metadata = future.get(timeout=10)
+    except KafkaError:
+        pass
+
+producer.flush()
+producer.close()
