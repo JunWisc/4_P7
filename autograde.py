@@ -265,13 +265,14 @@ def test_topics_created():
     except Exception as e:
         return "Failed to run producer.py:" + str(e)
 
-    for _ in range(30):
+    for _ in range(60):
         admin_client = KafkaAdminClient(bootstrap_servers=["localhost:9092"])
         try:
             if "temperatures" in set(admin_client.list_topics()):
                 break
         except Exception as e:
-            time.sleep(1)
+            pass
+        time.sleep(1)
     else:
         return f"Expected topics: 'temperatures', Found: {admin_client.list_topics()}"
 
@@ -295,14 +296,14 @@ def test_topics_created():
 @test(10)
 def test_producer_messages():
     log("Running Test: checking 'temperatures' stream...")
-
+    
     global MONTHS
     consumer = KafkaConsumer(
         bootstrap_servers=[BROKER_URL], auto_offset_reset="earliest"
     )
     consumer.subscribe(["temperatures"])
 
-    time.sleep(1)  # Producer should be running, so wait for some data
+    time.sleep(10)  # Producer should be running, so wait for some data
 
     batch = consumer.poll(1000)
 
@@ -348,10 +349,12 @@ def test_proto_build():
 @test(10)
 def test_debug_consumer_output():
     log("Running Test: testing debug.py ...")
+    
+    time.sleep(10)
 
     out_file = "q7.out"
     save_cmd_output(
-        "docker exec -it p7-autograder-kafka python3 /files/debug.py", out_file, 5
+        "docker exec -it p7-autograder-kafka python3 /files/debug.py", out_file, 10
     )
 
     with open(out_file, "r") as file:
@@ -398,8 +401,10 @@ def test_partition_json_creation():
     months_seen = set()
     part_nums_seen = set()
     partition_offsets = dict()
+    
+    time.sleep(60)
 
-    for _ in range(10):
+    for _ in range(15):
         error_msg = ""
         time.sleep(1)
         try:
@@ -475,6 +480,7 @@ def test_partition_json_contents():
 def test_plot_generation():
     for _ in range(10):
         try:
+            time.sleep(1)
             run_in_docker("p7-autograder-kafka", "python3 /files/plot.py")
             break
         except Exception as e:
