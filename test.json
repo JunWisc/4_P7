@@ -16,7 +16,7 @@
     "test_plot_generation": [
       "Traceback (most recent call last):\n",
       "  File \"/home/owner/project-7-junho_7/tester.py\", line 38, in run\n    result = self.func()\n",
-      "  File \"/home/owner/project-7-junho_7/autograde.py\", line 485, in test_plot_generation\n    plot_data = read_file_from_docker(\"p7-autograder-kafka\", \"/files/month.svg\")\n",
+      "  File \"/home/owner/project-7-junho_7/autograde.py\", line 491, in test_plot_generation\n    plot_data = read_file_from_docker(\"p7-autograder-kafka\", \"/files/month.svg\")\n",
       "  File \"/home/owner/project-7-junho_7/autograde.py\", line 152, in read_file_from_docker\n    result = subprocess.run(\n",
       "  File \"/usr/lib/python3.10/subprocess.py\", line 526, in run\n    raise CalledProcessError(retcode, process.args,\n",
       "subprocess.CalledProcessError: Command 'docker exec p7-autograder-kafka cat /files/month.svg' returned non-zero exit status 1.\n"

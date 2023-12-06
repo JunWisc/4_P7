@@ -4,6 +4,7 @@ from kafka.errors import KafkaError, UnknownTopicOrPartitionError
 import time
 import weather
 import report_pb2
+from datetime import datetime
 
 broker = 'localhost:9092'
 admin_client = KafkaAdminClient(bootstrap_servers=[broker])
@@ -27,7 +28,8 @@ producer = KafkaProducer(bootstrap_servers=[broker],
 
 for date, degrees in weather.get_next_weather(delay_sec=0.1):
     report = report_pb2.Report(date=date, degrees=degrees)
-    future = producer.send('temperatures', key=date.split('-')[1].encode(), value=report.SerializeToString())
+    month = datetime.strptime(date, "%Y-%m-%d").strftime("%B")
+    future = producer.send('temperatures', key=month.encode(), value=report.SerializeToString())
 
     try:
         record_metadata = future.get(timeout=10)
