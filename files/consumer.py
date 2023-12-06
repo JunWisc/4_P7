@@ -15,7 +15,7 @@ def update_stats(stats, report):
     stats['avg'] = stats['sum'] / stats['count']
 
 def load_partition_data(partition):
-    path = f"partition-{partition}.json"
+    path = f"./files/partition-{partition}.json"
     if os.path.exists(path):
         with open(path, 'r') as f:
             data = json.load(f)
@@ -24,7 +24,8 @@ def load_partition_data(partition):
     return data
 
 def save_partition_data(partition, data):
-    path = f"partition-{partition}.json"
+    print("saving",partition,data)
+    path = f"./files/partition-{partition}.json"
     path_tmp = path + ".tmp"
     with open(path_tmp, "w") as f:
         json.dump(data, f)
