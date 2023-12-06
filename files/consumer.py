@@ -1,57 +1,65 @@
+import os
+import json
+import time
 from kafka import KafkaConsumer, TopicPartition
 import report_pb2
-import json
-import os
 import sys
 
-partitions = [int(arg) for arg in sys.argv[1:]]
+def update_stats(stats, report):
+    if report.date < stats['start']:
+        stats['start'] = report.date
+    if report.date > stats['end']:
+        stats['end'] = report.date
+    stats['count'] += 1
+    stats['sum'] += report.degrees
+    stats['avg'] = stats['sum'] / stats['count']
 
-consumer = KafkaConsumer(
-        bootstrap_servers=['localhost:9092'],
-        value_deserializer=lambda m: report_pb2.Report().FromString(m)
-    )
-consumer.assign([TopicPartition('temperatures', p) for p in partitions])
-
-partition_data = {}
-
-for p in partitions:
-    filename = f'partition-{p}.json'
-    if os.path.exists(filename):
-        with open(filename, 'r') as f:
-            partition_data[p] = json.load(f)
-        consumer.seek(TopicPartition('temperatures', p), partition_data[p]['offset'])
+def load_partition_data(partition):
+    path = f"partition-{partition}.json"
+    if os.path.exists(path):
+        with open(path, 'r') as f:
+            data = json.load(f)
     else:
-         partition_data[p] = {'partition': p, 'offset': 0}
+        data = {"partition": partition, "offset": 0}
+    return data
 
-for message in consumer:
-    report = report_pb2.Report()
-    report.ParseFromString(message.value)
-    month = message.key.decode('utf-8')
-    year = report.date.split('-')[0]
+def save_partition_data(partition, data):
+    path = f"partition-{partition}.json"
+    path_tmp = path + ".tmp"
+    with open(path_tmp, "w") as f:
+        json.dump(data, f)
+    os.rename(path_tmp, path)
 
-    if month not in partition_data[message.partition]:
-        partition_data[message.partition][month] = {}
+def main():
+    partitions = [int(p) for p in sys.argv[1:]]
+    topic_partitions = [TopicPartition('temperatures', p) for p in partitions]
+    
+    consumer = KafkaConsumer(bootstrap_servers=['localhost:9092'],
+                             value_deserializer=lambda m: report_pb2.Report().FromString(m))
 
-    if year not in partition_data[message.partition][month]:
-        partition_data[message.partition][month][year] = {
-                'count': 0,
-                'sum': 0,
-                'avg': 0,
-                'start': report.date,
-                'end': report.date
-        }
+    consumer.assign(topic_partitions)
+    
+    partition_data = {p: load_partition_data(p) for p in partitions}
 
-    data = partition_data[message.partition][month][year]
+    for tp in topic_partitions:
+        consumer.seek(tp, partition_data[tp.partition]['offset'])
 
-    if report.date <= data['end']:
-        continue  # Ignore duplicate dates
-    data['count'] += 1
-    data['sum'] += report.degrees
-    data['avg'] = data['sum'] / data['count']
-    data['end'] = report.date
-    partition_data[message.partition]['offset'] = message.offset
+    for message in consumer:
+        report = message.value
+        data = partition_data[message.partition]
+        month = message.key.decode()
+        year = report.date.split('-')[0]
 
-    with open(f'partition-{message.partition}.json.tmp', 'w') as f:
-        json.dump(partition_data[message.partition], f)
-    os.rename(f'partition-{message.partition}.json.tmp', f'partition-{message.partition}.json')
-   
+        if month not in data:
+            data[month] = {}
+        if year not in data[month]:
+            data[month][year] = {"count": 0, "sum": 0, "avg": 0, "start": report.date, "end": report.date}
+
+        update_stats(data[month][year], report)
+        data['offset'] = message.offset + 1
+        save_partition_data(message.partition, data)
+
+if __name__ == "__main__":
+        main()
+
+
