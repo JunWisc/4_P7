@@ -4,7 +4,7 @@ import json
 import os
 
 def load_partition_data(partition):
-    path = f"partition-{partition}.json"
+    path = f"./files/partition-{partition}.json"
     if os.path.exists(path):
         with open(path, 'r') as f:
             data = json.load(f)
